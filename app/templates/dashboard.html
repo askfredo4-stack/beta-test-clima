@@ -1,0 +1,850 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agente Clima V2</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&family=Bebas+Neue&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+:root {
+  --bg: #0a0a0f;
+  --panel: #111118;
+  --border: #1e1e2e;
+  --green: #00ff88;
+  --red: #ff3355;
+  --yellow: #ffd700;
+  --amber: #f59e0b;
+  --dim: #444466;
+  --text: #cccce0;
+  --accent: #7b5fff;
+  --blue: #60a5fa;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:var(--bg); color:var(--text); font-family:'JetBrains Mono',monospace; min-height:100vh; font-size:13px; }
+
+/* HEADER */
+header { border-bottom:1px solid var(--border); padding:16px 28px; }
+.header-inner { max-width:1400px; margin:0 auto; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; }
+.logo-title { font-family:'Bebas Neue',sans-serif; font-size:2rem; letter-spacing:4px; color:#fff; }
+.logo-title span { color:var(--amber); font-size:1.1rem; letter-spacing:2px; font-family:'JetBrains Mono',monospace; font-weight:300; }
+.logo-sub { font-size:0.68rem; color:var(--dim); letter-spacing:2px; text-transform:uppercase; margin-top:2px; }
+.header-controls { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+
+.badge-regime { padding:4px 14px; border-radius:2px; font-size:0.72rem; font-weight:700; letter-spacing:1px; border:1px solid; }
+.badge-regime.semana { background:rgba(0,255,136,0.08); border-color:rgba(0,255,136,0.3); color:var(--green); }
+.badge-regime.finde  { background:rgba(255,215,0,0.08); border-color:rgba(255,215,0,0.3); color:var(--yellow); }
+.badge-regime.blocked{ background:rgba(255,51,85,0.08); border-color:rgba(255,51,85,0.3); color:var(--red); }
+
+.badge-status { display:flex; align-items:center; gap:7px; padding:4px 14px; border-radius:2px; font-size:0.72rem; font-weight:600; border:1px solid; }
+.badge-status.running { background:rgba(245,158,11,0.08); border-color:rgba(245,158,11,0.3); color:var(--amber); }
+.badge-status.stopped { background:rgba(255,51,85,0.08); border-color:rgba(255,51,85,0.3); color:var(--red); }
+.status-dot { width:7px; height:7px; border-radius:50%; }
+.pulse-dot { animation:pulse 2s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+.btn { padding:6px 18px; border-radius:2px; font-family:'JetBrains Mono',monospace; font-size:0.72rem; font-weight:700; letter-spacing:1px; text-transform:uppercase; cursor:pointer; border:1px solid; transition:all .15s; }
+.btn-start { background:rgba(245,158,11,0.1); border-color:rgba(245,158,11,0.4); color:var(--amber); }
+.btn-start:hover { background:rgba(245,158,11,0.2); }
+.btn-stop  { background:rgba(255,51,85,0.1); border-color:rgba(255,51,85,0.4); color:var(--red); }
+.btn-stop:hover  { background:rgba(255,51,85,0.2); }
+.hidden { display:none!important; }
+
+main { max-width:1400px; margin:0 auto; padding:24px 28px; display:flex; flex-direction:column; gap:20px; }
+
+/* KPIs */
+.kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:10px; }
+.kpi { background:var(--panel); border:1px solid var(--border); padding:14px 16px; border-radius:2px; }
+.kpi-label { font-size:0.6rem; color:var(--dim); letter-spacing:2px; text-transform:uppercase; margin-bottom:6px; }
+.kpi-value { font-size:1.4rem; font-weight:700; }
+.c-white { color:#fff; }
+.c-green { color:var(--green); }
+.c-red   { color:var(--red); }
+.c-amber { color:var(--amber); }
+.c-blue  { color:var(--blue); }
+.c-accent{ color:var(--accent); }
+
+/* STRATEGY BANNER */
+.strategy { background:var(--panel); border:1px solid var(--border); padding:18px 20px; border-radius:2px; }
+.strategy-title { font-size:0.68rem; color:var(--dim); letter-spacing:2px; text-transform:uppercase; margin-bottom:14px; }
+.strategy-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:14px; margin-bottom:14px; }
+.strategy-item label { font-size:0.58rem; color:var(--dim); letter-spacing:2px; text-transform:uppercase; display:block; margin-bottom:4px; }
+.strategy-item p { font-size:1rem; font-weight:700; }
+.strategy-divider { border-top:1px solid var(--border); padding-top:12px; margin-top:4px; display:grid; grid-template-columns:1fr 1fr; gap:12px; font-size:0.68rem; color:var(--dim); }
+.strategy-divider .score-row { display:grid; grid-template-columns:repeat(2,1fr); gap:8px; margin-top:8px; }
+
+/* ── CHART PANEL ─────────────────────────────────────────────────────── */
+.chart-panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  padding: 20px 22px;
+  border-radius: 2px;
+}
+
+.chart-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.chart-header-left .chart-title {
+  font-size: 0.65rem;
+  color: var(--dim);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+.chart-stats {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+
+.chart-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.chart-stat-label {
+  font-size: 0.55rem;
+  color: var(--dim);
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+}
+
+.chart-stat-value {
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.chart-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 2px;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+.chart-badge.gain { background:rgba(0,255,136,0.1); border:1px solid rgba(0,255,136,0.25); color:var(--green); }
+.chart-badge.loss { background:rgba(255,51,85,0.1);  border:1px solid rgba(255,51,85,0.25);  color:var(--red); }
+.chart-badge.flat { background:rgba(255,255,255,0.04); border:1px solid var(--border); color:var(--dim); }
+
+.chart-timeinfo {
+  font-size: 0.6rem;
+  color: var(--dim);
+  margin-top: 4px;
+  letter-spacing: 1px;
+}
+
+.chart-wrap {
+  position: relative;
+  width: 100%;
+}
+
+canvas#capitalChart { display: block; width: 100% !important; }
+
+/* TABLES GRID */
+.tables-row { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+@media(max-width:900px){ .tables-row{ grid-template-columns:1fr; } }
+
+.table-panel { background:var(--panel); border:1px solid var(--border); padding:18px 20px; border-radius:2px; overflow-x:auto; }
+table { width:100%; border-collapse:collapse; }
+th { font-size:0.58rem; color:var(--dim); letter-spacing:2px; text-transform:uppercase; padding:0 10px 10px 0; text-align:left; border-bottom:1px solid var(--border); white-space:nowrap; }
+td { padding:8px 10px 8px 0; border-bottom:1px solid #16161f; vertical-align:top; }
+tr:last-child td { border-bottom:none; }
+td.q  { min-width:200px; word-break:break-word; white-space:normal; line-height:1.5; }
+td.num{ white-space:nowrap; }
+td.res{ min-width:160px; word-break:break-word; white-space:normal; line-height:1.4; font-size:0.7rem; color:var(--dim); }
+
+.panel-title { font-size:0.65rem; color:var(--dim); letter-spacing:2px; text-transform:uppercase; margin-bottom:14px; display:flex; align-items:center; justify-content:space-between; }
+.empty-msg { font-size:0.72rem; color:var(--dim); margin-top:10px; }
+
+.progress-wrap { margin-top:4px; background:#1e1e2e; border-radius:1px; height:2px; }
+.progress-bar { height:2px; border-radius:1px; transition:width .3s; }
+
+.price-badge { display:flex; align-items:center; gap:5px; padding:2px 10px; border-radius:2px; font-size:0.65rem; border:1px solid; }
+.price-badge.fresh    { background:rgba(245,158,11,0.08); border-color:rgba(245,158,11,0.3); color:var(--amber); }
+.price-badge.stale    { background:rgba(255,215,0,0.08);  border-color:rgba(255,215,0,0.3);  color:var(--yellow); }
+.price-badge.dead     { background:rgba(255,51,85,0.08);  border-color:rgba(255,51,85,0.3);  color:var(--red); }
+.price-badge.nodata   { background:var(--panel);          border-color:var(--border);         color:var(--dim); }
+.price-dot { width:6px; height:6px; border-radius:50%; }
+
+.tag { display:inline-block; padding:1px 7px; border-radius:2px; font-size:0.65rem; font-weight:700; letter-spacing:.5px; }
+.tag-win   { background:rgba(0,255,136,0.1); color:var(--green); }
+.tag-tp    { background:rgba(245,158,11,0.1); color:var(--amber); }
+.tag-lose  { background:rgba(255,51,85,0.1); color:var(--red); }
+.tag-force { background:rgba(96,165,250,0.1); color:var(--blue); }
+
+.insights-grid { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+@media(max-width:700px){ .insights-grid{ grid-template-columns:1fr; } }
+.bar-row { margin-bottom:8px; }
+.bar-row-labels { display:flex; justify-content:space-between; font-size:0.65rem; color:var(--dim); margin-bottom:3px; }
+.bar-bg { background:#1e1e2e; border-radius:1px; height:5px; }
+.bar-fill { height:5px; border-radius:1px; }
+
+footer { text-align:center; font-size:0.62rem; color:var(--dim); padding:16px; letter-spacing:2px; text-transform:uppercase; border-top:1px solid var(--border); margin-top:8px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <div>
+      <div class="logo-title">Agente Clima <span>BETA</span></div>
+      <div class="logo-sub">Focused YES — Buenos Aires · London · Miami · Paris · Toronto · Seattle · Wellington · Sao Paulo · Seoul</div>
+    </div>
+    <div class="header-controls">
+      <span id="regime-badge" class="badge-regime">—</span>
+      <span id="bot-status-badge" class="badge-status stopped">
+        <span id="status-dot" class="status-dot" style="background:var(--red)"></span>
+        <span id="status-text">Detenido</span>
+      </span>
+      <button id="btn-start" class="btn btn-start" onclick="startBot()">Iniciar Bot</button>
+      <button id="btn-stop" class="btn btn-stop hidden" onclick="stopBot()">Detener Bot</button>
+    </div>
+  </div>
+</header>
+
+<main>
+
+  <!-- KPIs -->
+  <div class="kpis">
+    <div class="kpi"><div class="kpi-label">Capital Total</div><div id="m-capital" class="kpi-value c-white">$0.00</div></div>
+    <div class="kpi"><div class="kpi-label">Disponible</div><div id="m-disponible" class="kpi-value c-white">$0.00</div></div>
+    <div class="kpi"><div class="kpi-label">P&L</div><div id="m-pnl" class="kpi-value c-white">$0.00</div></div>
+    <div class="kpi"><div class="kpi-label">ROI</div><div id="m-roi" class="kpi-value c-white">0.00%</div></div>
+    <div class="kpi"><div class="kpi-label">Win Rate</div><div id="m-winrate" class="kpi-value c-white">—</div></div>
+    <div class="kpi"><div class="kpi-label">Profit Factor</div><div id="m-pf" class="kpi-value c-white">—</div></div>
+    <div class="kpi"><div class="kpi-label">Trades</div><div id="m-trades" class="kpi-value c-white">—</div></div>
+    <div class="kpi"><div class="kpi-label">Max Drawdown</div><div id="m-maxdd" class="kpi-value c-red">—</div></div>
+    <div class="kpi"><div class="kpi-label">Mercados</div><div id="m-tracked" class="kpi-value c-amber">0</div></div>
+    <div class="kpi"><div class="kpi-label">Escaneos</div><div id="m-scans" class="kpi-value c-white">0</div></div>
+  </div>
+
+  <!-- Strategy -->
+  <div class="strategy">
+    <div class="strategy-title">Estrategia BETA — Focused YES · 9 Ciudades · Score por Progreso de Ventana</div>
+    <div class="strategy-grid">
+      <div class="strategy-item"><label>Entrada YES (activa)</label><p id="s-range" style="color:var(--amber)">6–11.5¢</p></div>
+      <div class="strategy-item"><label>Score Mínimo</label><p id="s-score" style="color:var(--blue)">≥ 60 pts</p></div>
+      <div class="strategy-item"><label>Take Profit</label><p style="color:var(--green)">YES ≥ 15¢ (+25–150%)</p></div>
+      <div class="strategy-item"><label>Sizing</label><p style="color:var(--accent)">2–3% (inverso al precio)</p></div>
+    </div>
+    <div class="strategy-divider">
+      <div><span style="color:var(--green);font-weight:700">SEMANA (lun–vie)</span> — YES 6–11.5¢, score ≥ 60</div>
+      <div><span style="color:var(--green);font-weight:700">FINDE (sáb–dom)</span> — YES 6–11.5¢, score ≥ 60 · mismas condiciones que semana</div>
+      <div class="score-row" style="grid-column:1/-1;border-top:1px solid var(--border);padding-top:10px;margin-top:4px;">
+        <div><span style="color:var(--amber)">Ciudades</span> — Buenos Aires · London · Miami · Paris · Toronto · Seattle · Wellington · Sao Paulo · Seoul</div>
+        <div><span style="color:var(--amber)">Ventanas (Chile)</span> — PAR 06–10h · LON 08–10h · SAO 11–13h · BA 11–15h · MIA 11–17h · TOR 14–17h · SEA 16–20h · WEL 19–21:30h · SEO 00–01h · cierre forzoso al vencer</div>
+        <div><span style="color:var(--amber)">Precio</span> — A (6-9¢)=30 / B (9-12¢)=20</div>
+        <div><span style="color:var(--amber)">Trayectoria</span> — gradual=30 / estable=20 / rápido=10</div>
+        <div><span style="color:var(--amber)">Volumen</span> — >500=20 / >300=15 / >200=10</div>
+        <div><span style="color:var(--amber)">Hora local</span> — ≥16h=20 / ≥14h=15 / ≥12h=10</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Chart -->
+  <div class="chart-panel">
+    <div class="chart-header">
+      <div class="chart-header-left">
+        <div class="chart-title">Evolución de Capital</div>
+        <div class="chart-stats">
+          <div class="chart-stat">
+            <span class="chart-stat-label">Capital Inicial</span>
+            <span id="chart-initial" class="chart-stat-value c-white">—</span>
+          </div>
+          <div class="chart-stat">
+            <span class="chart-stat-label">Capital Actual</span>
+            <span id="chart-current" class="chart-stat-value c-white">—</span>
+          </div>
+          <div class="chart-stat">
+            <span class="chart-stat-label">P&L Total</span>
+            <span id="chart-pnl" class="chart-stat-value c-white">—</span>
+          </div>
+          <div class="chart-stat">
+            <span class="chart-stat-label">Max Drawdown</span>
+            <span id="chart-drawdown" class="chart-stat-value c-red">—</span>
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+        <span id="chart-pnl-badge" class="chart-badge flat">—</span>
+        <span id="chart-timeinfo" class="chart-timeinfo">Sin datos</span>
+      </div>
+    </div>
+    <div class="chart-wrap">
+      <canvas id="capitalChart" height="90"></canvas>
+    </div>
+  </div>
+
+  <!-- Open + Opportunities -->
+  <div class="tables-row">
+    <div class="table-panel">
+      <div class="panel-title">
+        Posiciones Abiertas (YES)
+        <span id="price-badge" class="price-badge nodata">
+          <span id="price-badge-dot" class="price-dot" style="background:var(--dim)"></span>
+          <span id="price-badge-txt">Precios: —</span>
+        </span>
+      </div>
+      <table>
+        <thead><tr>
+          <th>Mercado</th><th>Entrada</th><th>Actual</th><th>TP</th><th>$</th><th>P&L</th>
+        </tr></thead>
+        <tbody id="table-open"></tbody>
+      </table>
+      <p id="no-open" class="empty-msg hidden">Sin posiciones abiertas</p>
+    </div>
+    <div class="table-panel">
+      <div class="panel-title">Oportunidades YES (último escaneo)</div>
+      <table>
+        <thead><tr>
+          <th>Mercado</th><th>YES</th><th>Score</th><th>Zona</th><th>Vol</th>
+        </tr></thead>
+        <tbody id="table-opps"></tbody>
+      </table>
+      <p id="no-opps" class="empty-msg hidden">Sin oportunidades</p>
+    </div>
+  </div>
+
+  <!-- Closed trades -->
+  <div class="table-panel">
+    <div class="panel-title">Trades Cerrados</div>
+    <table>
+      <thead><tr>
+        <th>Mercado</th><th>Entrada YES</th><th>Invertido</th><th>P&L</th><th>Estado</th><th>Resolución</th><th>Cerrado</th>
+      </tr></thead>
+      <tbody id="table-closed"></tbody>
+    </table>
+    <p id="no-closed" class="empty-msg hidden">Sin trades cerrados</p>
+  </div>
+
+  <!-- Insights -->
+  <div id="insights-panel" class="chart-panel hidden">
+    <div class="panel-title">
+      Performance por Ciudad
+      <span id="insights-trades" style="color:var(--dim);font-weight:400"></span>
+    </div>
+    <div class="insights-grid">
+      <div>
+        <div style="font-size:.6rem;color:var(--dim);letter-spacing:2px;text-transform:uppercase;margin-bottom:10px">Win Rate &amp; Profit Factor</div>
+        <div id="insights-city"></div>
+      </div>
+      <div>
+        <div style="font-size:.6rem;color:var(--dim);letter-spacing:2px;text-transform:uppercase;margin-bottom:10px">P&amp;L por Ciudad ($)</div>
+        <div style="position:relative;height:180px">
+          <canvas id="cityPnlChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<footer>Agente Clima BETA &mdash; Focused YES / 9 Ciudades / Score por Progreso de Ventana</footer>
+
+<script>
+// ── HELPERS ──────────────────────────────────────────────────────────────────
+const $id = id => document.getElementById(id);
+const pnlColor = v => v >= 0 ? "c-green" : "c-red";
+const pnlSign  = v => v >= 0 ? "+" : "";
+function esc(s) { return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+function formatTime(iso) { if (!iso) return "-"; return new Date(iso).toLocaleTimeString("es",{hour:"2-digit",minute:"2-digit"}); }
+function scoreColor(score) {
+  if (score >= 80) return "c-green";
+  if (score >= 60) return "c-amber";
+  return "";
+}
+
+// ── CHART SETUP ──────────────────────────────────────────────────────────────
+const baselinePlugin = {
+  id: "baselinePlugin",
+  beforeDraw(chart) {
+    const { ctx, scales, data } = chart;
+    if (!data.datasets[0].data.length) return;
+    const baseline = chart._baselineValue;
+    if (baseline == null) return;
+
+    const y = scales.y.getPixelForValue(baseline);
+    const xStart = scales.x.left;
+    const xEnd   = scales.x.right;
+
+    ctx.save();
+    ctx.setLineDash([4, 4]);
+    ctx.strokeStyle = "rgba(255,255,255,0.15)";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(xStart, y);
+    ctx.lineTo(xEnd, y);
+    ctx.stroke();
+    ctx.restore();
+  },
+};
+
+function buildGradient(chart, baseline) {
+  const { ctx, chartArea, scales } = chart;
+  if (!chartArea) return "rgba(123,95,255,0.1)";
+
+  const vals = chart.data.datasets[0].data;
+  if (!vals.length) return "rgba(123,95,255,0.1)";
+
+  const current = vals[vals.length - 1];
+  const isGain  = current >= baseline;
+
+  const grad = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+  if (isGain) {
+    grad.addColorStop(0,   "rgba(0,255,136,0.22)");
+    grad.addColorStop(0.5, "rgba(0,255,136,0.06)");
+    grad.addColorStop(1,   "rgba(0,255,136,0.00)");
+  } else {
+    grad.addColorStop(0,   "rgba(255,51,85,0.22)");
+    grad.addColorStop(0.5, "rgba(255,51,85,0.06)");
+    grad.addColorStop(1,   "rgba(255,51,85,0.00)");
+  }
+  return grad;
+}
+
+const ctx = document.getElementById("capitalChart").getContext("2d");
+const capitalChart = new Chart(ctx, {
+  type: "line",
+  plugins: [baselinePlugin],
+  data: {
+    labels: [],
+    datasets: [{
+      label: "Capital ($)",
+      data: [],
+      borderColor: "#7b5fff",
+      backgroundColor: "rgba(123,95,255,0.08)",
+      fill: true,
+      tension: 0.35,
+      pointRadius: 0,
+      pointHoverRadius: 5,
+      pointHoverBackgroundColor: "#7b5fff",
+      pointHoverBorderColor: "#fff",
+      pointHoverBorderWidth: 2,
+      borderWidth: 2,
+    }],
+  },
+  options: {
+    responsive: true,
+    interaction: { mode: "index", intersect: false },
+    scales: {
+      x: {
+        ticks: {
+          color: "#444466",
+          maxTicksLimit: 8,
+          font: { family: "'JetBrains Mono',monospace", size: 10 },
+          maxRotation: 0,
+        },
+        grid: { color: "#16161f" },
+      },
+      y: {
+        ticks: {
+          color: "#444466",
+          callback: v => "$" + v.toFixed(2),
+          font: { family: "'JetBrains Mono',monospace", size: 10 },
+        },
+        grid: { color: "#16161f" },
+      },
+    },
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        backgroundColor: "#111118",
+        borderColor: "#1e1e2e",
+        borderWidth: 1,
+        titleColor: "#444466",
+        bodyColor: "#cccce0",
+        padding: 10,
+        callbacks: {
+          label(ctx) {
+            const v   = ctx.parsed.y;
+            const base = capitalChart._baselineValue || v;
+            const diff = v - base;
+            const sign = diff >= 0 ? "+" : "";
+            return [
+              `  Capital: $${v.toFixed(2)}`,
+              `  vs inicio: ${sign}$${diff.toFixed(2)}  (${sign}${((diff/base)*100).toFixed(2)}%)`,
+            ];
+          },
+        },
+      },
+    },
+    animation: { duration: 400 },
+  },
+});
+
+// ── CHART UPDATE ─────────────────────────────────────────────────────────────
+function updateChart(hist, currentPnl) {
+  if (!hist || hist.length === 0) {
+    $id("chart-initial").textContent  = "—";
+    $id("chart-current").textContent  = "—";
+    $id("chart-pnl").textContent      = "—";
+    $id("chart-drawdown").textContent = "—";
+    $id("chart-pnl-badge").className  = "chart-badge flat";
+    $id("chart-pnl-badge").textContent = "Sin datos";
+    $id("chart-timeinfo").textContent  = "Sin datos";
+    capitalChart.data.labels           = [];
+    capitalChart.data.datasets[0].data = [];
+    capitalChart._baselineValue        = null;
+    capitalChart.update("none");
+    return;
+  }
+
+  const values   = hist.map(h => h.capital);
+  const labels   = hist.map(h => formatTime(h.time));
+  const baseline = values[0];
+  const current  = values[values.length - 1];
+  const diff     = current - baseline;
+  const diffPct  = baseline > 0 ? (diff / baseline * 100) : 0;
+  const isGain   = diff >= 0;
+
+  let peak = baseline;
+  let maxDD = 0;
+  for (const v of values) {
+    if (v > peak) peak = v;
+    const dd = peak - v;
+    if (dd > maxDD) maxDD = dd;
+  }
+
+  $id("chart-initial").textContent  = "$" + baseline.toFixed(2);
+  $id("chart-current").textContent  = "$" + current.toFixed(2);
+
+  const pnlEl = $id("chart-pnl");
+  pnlEl.textContent  = pnlSign(diff) + "$" + diff.toFixed(2);
+  pnlEl.className    = "chart-stat-value " + (isGain ? "c-green" : "c-red");
+
+  $id("chart-drawdown").textContent = maxDD > 0 ? "-$" + maxDD.toFixed(2) : "$0.00";
+  const ddEl = $id("m-maxdd");
+  if (ddEl) { ddEl.textContent = maxDD > 0 ? "-$" + maxDD.toFixed(2) : "$0.00"; }
+
+  const badge = $id("chart-pnl-badge");
+  badge.className   = "chart-badge " + (isGain ? "gain" : "loss");
+  badge.textContent = (isGain ? "▲ +" : "▼ ") + "$" + Math.abs(diff).toFixed(2)
+                    + " (" + (isGain ? "+" : "") + diffPct.toFixed(2) + "%)";
+
+  const firstTime = hist[0].time  ? new Date(hist[0].time).toLocaleTimeString("es",{hour:"2-digit",minute:"2-digit"}) : "—";
+  const lastTime  = hist[hist.length-1].time ? new Date(hist[hist.length-1].time).toLocaleTimeString("es",{hour:"2-digit",minute:"2-digit"}) : "—";
+  $id("chart-timeinfo").textContent = `${firstTime} → ${lastTime}  ·  ${hist.length} puntos`;
+
+  const lineColor = isGain ? "#00ff88" : "#ff3355";
+
+  capitalChart._baselineValue                = baseline;
+  capitalChart.data.labels                   = labels;
+  capitalChart.data.datasets[0].data         = values;
+  capitalChart.data.datasets[0].borderColor  = lineColor;
+  capitalChart.data.datasets[0].backgroundColor = (ctx2) => buildGradient(ctx2.chart, baseline);
+
+  capitalChart.update();
+}
+
+// ── REGIME BADGE ─────────────────────────────────────────────────────────────
+function updateRegimeBadge(data) {
+  const regime  = data.regime || "—";
+  const blocked = data.regime_blocked;
+  const badge   = $id("regime-badge");
+  const fmtC = v => { const n = +(v * 100).toFixed(1); return Number.isInteger(n) ? n.toString() : n.toFixed(1); };
+  const yMin    = fmtC(data.active_yes_min || 0.06);
+  const yMax    = fmtC(data.active_yes_max || 0.115);
+  const sc      = data.active_min_score || 60;
+
+  if (blocked) {
+    badge.className = "badge-regime blocked";
+    badge.textContent = "FINDE BLOQUEADO";
+  } else if (regime === "FINDE") {
+    badge.className = "badge-regime finde";
+    badge.textContent = `FINDE · ${yMin}–${yMax}¢`;
+  } else {
+    badge.className = "badge-regime semana";
+    badge.textContent = `SEMANA · ${yMin}–${yMax}¢`;
+  }
+
+  const rangeEl = $id("s-range");
+  const scoreEl = $id("s-score");
+  if (rangeEl) rangeEl.textContent = blocked ? "BLOQUEADO" : `${yMin}–${yMax}¢`;
+  if (scoreEl) scoreEl.textContent = `≥ ${sc} pts`;
+}
+
+// ── MAIN UPDATE ──────────────────────────────────────────────────────────────
+function updateUI(data) {
+  const running = data.bot_status === "running";
+  const badge = $id("bot-status-badge");
+  badge.className = "badge-status " + (running ? "running" : "stopped");
+  $id("status-dot").style.background = running ? "var(--amber)" : "var(--red)";
+  $id("status-dot").className = "status-dot" + (running ? " pulse-dot" : "");
+  $id("status-text").textContent = running ? "Corriendo" : "Detenido";
+  $id("btn-start").classList.toggle("hidden", running);
+  $id("btn-stop").classList.toggle("hidden", !running);
+
+  updateRegimeBadge(data);
+
+  $id("m-capital").textContent    = "$" + data.capital_total.toFixed(2);
+  $id("m-disponible").textContent = "$" + data.capital_disponible.toFixed(2);
+
+  const pnlEl = $id("m-pnl");
+  pnlEl.textContent = pnlSign(data.pnl) + "$" + data.pnl.toFixed(2);
+  pnlEl.className   = "kpi-value " + pnlColor(data.pnl);
+
+  const roiEl = $id("m-roi");
+  roiEl.textContent = pnlSign(data.roi) + data.roi.toFixed(2) + "%";
+  roiEl.className   = "kpi-value " + pnlColor(data.roi);
+
+  $id("m-tracked").textContent   = data.tracked_markets || 0;
+  $id("m-scans").textContent     = data.scan_count;
+
+  lastPriceUpdateISO = data.last_price_update || null;
+  priceThreadAlive   = data.price_thread_alive ?? true;
+  updatePriceBadge();
+  updateInsights(data.insights);
+
+  updateChart(data.capital_history || [], data.pnl);
+
+  // Open positions
+  const openTb  = $id("table-open");
+  const openPos = data.open_positions || [];
+  if (openPos.length === 0) {
+    openTb.innerHTML = "";
+    $id("no-open").classList.remove("hidden");
+  } else {
+    $id("no-open").classList.add("hidden");
+    openTb.innerHTML = openPos.map(p => {
+      const progress = Math.min(100, Math.max(0,
+        (p.current_yes - p.entry_yes) / (p.take_profit - p.entry_yes) * 100
+      ));
+      const progressColor = progress >= 80 ? "var(--green)" : progress >= 40 ? "var(--amber)" : "var(--dim)";
+      return `<tr>
+        <td class="q">${esc(p.question)}
+          <div class="progress-wrap" title="${progress.toFixed(0)}% hacia TP">
+            <div class="progress-bar" style="width:${progress}%;background:${progressColor}"></div>
+          </div>
+        </td>
+        <td class="num" style="color:var(--amber)">${(p.entry_yes * 100).toFixed(1)}¢</td>
+        <td class="num" style="font-weight:600">${(p.current_yes * 100).toFixed(1)}¢</td>
+        <td class="num" style="color:var(--green)">${(p.take_profit * 100).toFixed(1)}¢</td>
+        <td class="num">$${p.allocated.toFixed(2)}</td>
+        <td class="num ${pnlColor(p.pnl)}">${pnlSign(p.pnl)}$${p.pnl.toFixed(2)}</td>
+      </tr>`;
+    }).join("");
+  }
+
+  // Opportunities
+  const oppsTb = $id("table-opps");
+  const opps   = data.last_opportunities || [];
+  if (opps.length === 0) {
+    oppsTb.innerHTML = "";
+    $id("no-opps").classList.remove("hidden");
+  } else {
+    $id("no-opps").classList.add("hidden");
+    const activeYesMin   = data.active_yes_min   || 0.06;
+    const activeYesMax   = data.active_yes_max   || 0.12;
+    const activeMinScore = data.active_min_score || 60;
+    const entriesBlocked = data.regime_blocked;
+    oppsTb.innerHTML = opps.map(o => {
+      const inRange  = o.yes_price >= activeYesMin && o.yes_price <= activeYesMax;
+      const ready    = !entriesBlocked && inRange && o.score >= activeMinScore;
+      const rowBg    = ready ? "background:rgba(245,158,11,0.05)" : inRange ? "background:rgba(255,255,255,0.02)" : "";
+      const zoneColor = o.zone === "A" ? "var(--green)" : o.zone === "B" ? "var(--amber)" : "var(--dim)";
+      return `<tr style="${rowBg}">
+        <td class="q">${esc(o.question)}</td>
+        <td class="num" style="${inRange?'color:var(--amber);font-weight:600':''}">${(o.yes_price * 100).toFixed(1)}¢</td>
+        <td class="num ${scoreColor(o.score)}" style="font-weight:600">${o.score || 0}</td>
+        <td class="num" style="color:${zoneColor}">${o.zone || '-'}</td>
+        <td class="num">$${(o.volume || 0).toLocaleString()}</td>
+      </tr>`;
+    }).join("");
+  }
+
+  // Closed trades
+  const closedTb = $id("table-closed");
+  const closed   = data.closed_positions || [];
+  if (closed.length === 0) {
+    closedTb.innerHTML = "";
+    $id("no-closed").classList.remove("hidden");
+  } else {
+    $id("no-closed").classList.add("hidden");
+    closedTb.innerHTML = closed.map(c => {
+      const tagClass =
+        c.status === "WON"         ? "tag-win"   :
+        c.status === "TAKE_PROFIT" ? "tag-tp"    :
+        c.status === "LOST"        ? "tag-lose"  :
+        c.status === "FORCE_CLOSE" ? "tag-force" : "";
+      return `<tr>
+        <td class="q">${esc(c.question)}</td>
+        <td class="num" style="color:var(--amber)">${(c.entry_yes * 100).toFixed(1)}¢</td>
+        <td class="num">$${c.allocated.toFixed(2)}</td>
+        <td class="num ${pnlColor(c.pnl)}">${pnlSign(c.pnl)}$${c.pnl.toFixed(2)}</td>
+        <td class="num"><span class="tag ${tagClass}">${c.status}</span></td>
+        <td class="res">${esc(c.resolution || "-")}</td>
+        <td class="num">${formatTime(c.close_time)}</td>
+      </tr>`;
+    }).join("");
+  }
+}
+
+// ── INSIGHTS ──────────────────────────────────────────────────────────────────
+function winBar(rate) {
+  const pct   = (rate * 100).toFixed(0);
+  const color = rate >= 0.7 ? "var(--green)" : rate >= 0.5 ? "var(--amber)" : "var(--red)";
+  return `<div class="bar-bg"><div class="bar-fill" style="width:${pct}%;background:${color}"></div></div>`;
+}
+
+let cityPnlChartInst = null;
+
+function updateInsights(ins) {
+  const panel = $id("insights-panel");
+  if (!ins) { panel.classList.add("hidden"); return; }
+  panel.classList.remove("hidden");
+
+  // Global KPIs from insights
+  const wrEl = $id("m-winrate");
+  const pfEl = $id("m-pf");
+  const trEl = $id("m-trades");
+  if (wrEl) {
+    const wr = (ins.overall_win_rate * 100).toFixed(0);
+    wrEl.textContent = wr + "%";
+    wrEl.className = "kpi-value " + (ins.overall_win_rate >= 0.5 ? "c-green" : "c-red");
+  }
+  if (pfEl) {
+    const pf = ins.profit_factor;
+    pfEl.textContent = pf != null ? pf.toFixed(2) : "—";
+    pfEl.className = "kpi-value " + (pf != null && pf >= 1 ? "c-green" : pf != null ? "c-red" : "c-white");
+  }
+  if (trEl) { trEl.textContent = ins.total_trades; }
+
+  $id("insights-trades").textContent =
+    `WR ${(ins.overall_win_rate*100).toFixed(0)}%  ·  PF ${ins.profit_factor != null ? ins.profit_factor.toFixed(2) : "—"}  ·  ${ins.total_trades} trades`;
+
+  // Per-city: win rate + PF
+  $id("insights-city").innerHTML = ins.by_city.length ? ins.by_city.map(c => {
+    const pfTxt = c.profit_factor != null ? `PF ${c.profit_factor.toFixed(2)}` : "PF —";
+    const pfColor = c.profit_factor != null && c.profit_factor >= 1 ? "var(--green)" : "var(--red)";
+    return `<div class="bar-row">
+      <div class="bar-row-labels">
+        <span>${c.city} <span style="color:var(--dim);font-size:.6rem">${c.trades}t</span></span>
+        <span style="display:flex;gap:10px">
+          <span style="color:${c.win_rate>=0.5?'var(--green)':'var(--red)'}">${(c.win_rate*100).toFixed(0)}%</span>
+          <span style="color:${pfColor}">${pfTxt}</span>
+        </span>
+      </div>
+      ${winBar(c.win_rate)}
+    </div>`;
+  }).join("") : `<p style="color:var(--dim);font-size:.7rem">Mínimo 2 trades por ciudad</p>`;
+
+  // PnL by city bar chart
+  const cities = ins.by_city.map(c => c.city);
+  const pnls   = ins.by_city.map(c => c.pnl || 0);
+  const colors = pnls.map(v => v >= 0 ? "rgba(0,255,136,0.7)" : "rgba(255,51,85,0.7)");
+  const borders = pnls.map(v => v >= 0 ? "#00ff88" : "#ff3355");
+
+  const canv = document.getElementById("cityPnlChart");
+  if (canv) {
+    if (cityPnlChartInst) cityPnlChartInst.destroy();
+    cityPnlChartInst = new Chart(canv.getContext("2d"), {
+      type: "bar",
+      data: {
+        labels: cities,
+        datasets: [{
+          data: pnls,
+          backgroundColor: colors,
+          borderColor: borders,
+          borderWidth: 1,
+          borderRadius: 2,
+        }]
+      },
+      options: {
+        indexAxis: "y",
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: "#111118",
+            borderColor: "#1e1e2e",
+            borderWidth: 1,
+            bodyColor: "#cccce0",
+            callbacks: {
+              label: ctx => {
+                const v = ctx.parsed.x;
+                return `  P&L: ${v >= 0 ? "+" : ""}$${v.toFixed(2)}`;
+              }
+            }
+          }
+        },
+        scales: {
+          x: {
+            ticks: { color: "#444466", font: { family: "'JetBrains Mono',monospace", size: 10 },
+                     callback: v => (v >= 0 ? "+" : "") + "$" + v.toFixed(2) },
+            grid: { color: "#16161f" },
+          },
+          y: {
+            ticks: { color: "#cccce0", font: { family: "'JetBrains Mono',monospace", size: 10 } },
+            grid: { display: false },
+          }
+        },
+        animation: { duration: 300 },
+      }
+    });
+  }
+}
+
+// ── BOT CONTROLS ──────────────────────────────────────────────────────────────
+async function startBot() { await fetch("/api/bot/start", {method:"POST"}); fetchStatus(); }
+async function stopBot()  { await fetch("/api/bot/stop",  {method:"POST"}); fetchStatus(); }
+
+// ── PRICE BADGE ───────────────────────────────────────────────────────────────
+let lastPriceUpdateISO = null;
+let priceThreadAlive   = false;
+function updatePriceBadge() {
+  const dot   = $id("price-badge-dot");
+  const txt   = $id("price-badge-txt");
+  const badge = $id("price-badge");
+  if (!lastPriceUpdateISO) {
+    badge.className = "price-badge nodata";
+    dot.style.background = "var(--dim)";
+    dot.className = "price-dot";
+    txt.textContent = "Precios: sin datos"; return;
+  }
+  const secAgo = Math.round((Date.now() - new Date(lastPriceUpdateISO).getTime()) / 1000);
+  txt.textContent = "Precios: hace " + secAgo + "s";
+  if (!priceThreadAlive) {
+    badge.className = "price-badge dead";
+    dot.style.background = "var(--red)";
+    dot.className = "price-dot";
+  } else if (secAgo < 60) {
+    badge.className = "price-badge fresh";
+    dot.style.background = "var(--amber)";
+    dot.className = "price-dot pulse-dot";
+  } else if (secAgo < 120) {
+    badge.className = "price-badge stale";
+    dot.style.background = "var(--yellow)";
+    dot.className = "price-dot";
+  } else {
+    badge.className = "price-badge dead";
+    dot.style.background = "var(--red)";
+    dot.className = "price-dot";
+  }
+}
+
+// ── POLLING ───────────────────────────────────────────────────────────────────
+async function fetchStatus() {
+  try {
+    const res = await fetch("/api/status");
+    if (res.ok) updateUI(await res.json());
+  } catch(e) { console.error(e); }
+}
+
+setInterval(updatePriceBadge, 1000);
+fetchStatus();
+setInterval(fetchStatus, 5000);
+</script>
+</body>
+</html>
