@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Agente Clima V2</title>
+<title>Agente Clima V3</title>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&family=Bebas+Neue&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
@@ -198,7 +198,7 @@ footer { text-align:center; font-size:0.62rem; color:var(--dim); padding:16px; l
 <header>
   <div class="header-inner">
     <div>
-      <div class="logo-title">Agente Clima <span>BETA</span></div>
+      <div class="logo-title">Agente Clima <span>V3</span></div>
       <div class="logo-sub">Focused YES — Buenos Aires · London · Miami · Paris · Toronto · Seattle · Wellington · Sao Paulo · Seoul</div>
     </div>
     <div class="header-controls">
@@ -231,7 +231,7 @@ footer { text-align:center; font-size:0.62rem; color:var(--dim); padding:16px; l
 
   <!-- Strategy -->
   <div class="strategy">
-    <div class="strategy-title">Estrategia BETA — Focused YES · 9 Ciudades · Score por Progreso de Ventana</div>
+    <div class="strategy-title">Estrategia V3 — Focused YES · 9 Ciudades · Score por Progreso de Ventana</div>
     <div class="strategy-grid">
       <div class="strategy-item"><label>Entrada YES (activa)</label><p id="s-range" style="color:var(--amber)">6–11.5¢</p></div>
       <div class="strategy-item"><label>Score Mínimo</label><p id="s-score" style="color:var(--blue)">≥ 60 pts</p></div>
@@ -247,7 +247,7 @@ footer { text-align:center; font-size:0.62rem; color:var(--dim); padding:16px; l
         <div><span style="color:var(--amber)">Precio</span> — A (6-9¢)=30 / B (9-12¢)=20</div>
         <div><span style="color:var(--amber)">Trayectoria</span> — gradual=30 / estable=20 / rápido=10</div>
         <div><span style="color:var(--amber)">Volumen</span> — >500=20 / >300=15 / >200=10</div>
-        <div><span style="color:var(--amber)">Hora local</span> — ≥16h=20 / ≥14h=15 / ≥12h=10</div>
+        <div><span style="color:var(--amber)">Hora (ventana)</span> — ≥75%=20 / ≥50%=15 / ≥25%=10 / &lt;25%=5</div>
       </div>
     </div>
   </div>
@@ -350,7 +350,7 @@ footer { text-align:center; font-size:0.62rem; color:var(--dim); padding:16px; l
 
 </main>
 
-<footer>Agente Clima BETA &mdash; Focused YES / 9 Ciudades / Score por Progreso de Ventana</footer>
+<footer>Agente Clima V3 &mdash; Focused YES / 9 Ciudades / Score por Progreso de Ventana</footer>
 
 <script>
 // ── HELPERS ──────────────────────────────────────────────────────────────────
